@@ -11,12 +11,12 @@ public class ParseJson {
 
     // JSON文字列を、JsonNodeオブジェクトに変換する（1）
     protected JsonNode getJsonNode(String str) {
-
+        Log.e(getClass().getName(), "getJsonNode() start str = " + str);
         try {
             return new ObjectMapper().readTree(str);
         }
         catch (IOException e) {
-            Log.d(getClass().getName(), e.getMessage());
+            Log.e(getClass().getName(), e.getMessage());
         }
         return null;
     }

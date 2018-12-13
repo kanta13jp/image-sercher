@@ -1,5 +1,7 @@
 package com.example.kanta.myapplication.ImageGallary;
 
+import android.util.Log;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.example.kanta.myapplication.util.ParseJson;
 
@@ -17,16 +19,23 @@ public class ParseInstagramImage extends ParseJson {
     // レスポンスの解析
     @Override
     public void loadJson(String str) {
+        Log.e(this.getClass().getSimpleName(),"loadJson()");
         JsonNode root = getJsonNode(str);
         if (root != null){
-            // 次のURLを取得
-            this.image_list.setNext_url(root.path("pagination").path("next_url").asText());
-            Iterator<JsonNode> ite = root.path("data").elements();
-            while (ite.hasNext()) {
-                JsonNode j = ite.next();
-                // 画像情報（URL）をリストに追加
-                this.image_list.add(j.path("images").path("thumbnail").path("url").asText(),
-                        j.path("images").path("standard_resolution").path("url").asText());
+            Log.e(this.getClass().getSimpleName(),"loadJson()　stat = " + root.path("stat").asText());
+            if(root.path("stat").asText().equals("ok"))
+            {
+               // 次のURLを取得
+                this.image_list.setNext_url(root.path("info").path("photo").asText());
+                Iterator<JsonNode> ite = root.path("info").path("photo").elements();
+                while (ite.hasNext()) {
+                    JsonNode j = ite.next();
+                    // 画像情報（URL）をリストに追加
+                    this.image_list.add(j.path("thumbnail_image_url").asText(),
+                            j.path("original_image_url").asText());
+                    Log.e(this.getClass().getSimpleName(), "loadJson()　thumbnail_image_url = " + j.path("thumbnail_image_url").asText());
+                    Log.e(this.getClass().getSimpleName(), "loadJson()　original_image_url = " + j.path("original_image_url").asText());
+                }
             }
         }
     }

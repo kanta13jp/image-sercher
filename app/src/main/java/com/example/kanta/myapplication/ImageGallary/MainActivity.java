@@ -1,12 +1,14 @@
 package com.example.kanta.myapplication.ImageGallary;
 
+import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.LoaderManager;
-import android.content.Intent;
+import android.content.DialogInterface;
 import android.content.Loader;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -20,10 +22,9 @@ import android.widget.ImageView;
 import com.example.kanta.myapplication.R;
 import com.example.kanta.myapplication.util.HttpAsyncLoader;
 
-import java.util.regex.Pattern;
-
 public class MainActivity extends AppCompatActivity {
     public static final String EXTRA_MESSAGE = "com.example.kanta.myapplication.MESSAGE";
+    private InstagramFragment instagramFragment = null;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -33,21 +34,18 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         if (savedInstanceState == null) {
-            getFragmentManager().beginTransaction()
-                    .add(R.id.container, new InstagramFragment()).commit();
         }
     }
 
     public static class InstagramFragment extends Fragment implements LoaderManager.LoaderCallbacks<String>, SwipeRefreshLayout.OnRefreshListener {
 
         private SwipeRefreshLayout swipeRefreshLayout = null;
-
+        private EditText editText = null;
+        private String keyword = null;
         // Instagram URL保持クラス
-        private ImageInfoList image_list =
-                new ImageInfoList("https://api.instagram.com/v1/tags/akb48/media/recent?client_id=xx");
-
+        private ImageInfoList image_list = null;
         // Instagram API解析クラス
-        private ParseInstagramImage parse = new ParseInstagramImage(this.image_list);
+        private ParseInstagramImage parse = null;
 
         private GridViewAdapter grid_view_adapter = null;
 
@@ -63,7 +61,10 @@ public class MainActivity extends AppCompatActivity {
         public void onActivityCreated(Bundle savedInstanceState) {
             super.onActivityCreated(savedInstanceState);
             setRetainInstance(true);
-
+            this.editText = getActivity().findViewById(R.id.editText);
+            this.keyword = this.editText.getText().toString();
+            this.image_list = new ImageInfoList("https://api.photozou.jp/rest/search_public.json?limit=30&keyword="+keyword);
+            this.parse = new ParseInstagramImage(this.image_list);
             this.swipeRefreshLayout = (SwipeRefreshLayout)getView().findViewById(R.id.SwipeRefreshLayout);
             this.swipeRefreshLayout.setOnRefreshListener(InstagramFragment.this);
 
@@ -124,12 +125,17 @@ public class MainActivity extends AppCompatActivity {
         // 取得データの更新
         @Override
         public void onRefresh() {
-            this.image_list.clear();	// 画像リストをクリアする
-            startLoader(0);        		// ローダーの起動
+            Log.e(this.getClass().getSimpleName(),"onRefresh() start");
+            this.image_list.clear();	// 画像リストをクリアstartLoader(0);
+            startLoader(0);        	// ローダーの起動
         }
 
         @Override
         public Loader<String> onCreateLoader(int id, Bundle args) {
+            Log.e(this.getClass().getSimpleName(),"onCreateLoader() start");
+            this.keyword = this.editText.getText().toString();
+            this.image_list = new ImageInfoList("https://api.photozou.jp/rest/search_public.json?limit=30&keyword="+keyword);
+            this.parse = new ParseInstagramImage(this.image_list);
             HttpAsyncLoader loader = new HttpAsyncLoader(getActivity(), this.image_list.getNext_url());
             loader.forceLoad();
             return loader;
@@ -137,21 +143,17 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onLoadFinished(Loader<String> loader, String data) {
-            if (data == null) return;
+            Log.e(this.getClass().getSimpleName(), "onLoadFinished() start");
+            if (data == null){
+                data = "{\"stat\":\"fail\",\"err\":[{\"code\":\"ERROR_UNKNOWN\",\"msg\":\"Keyword is too short\"}]}";
+            }
             this.parse.loadJson(data); // APIのレスポンスを解析する
 
-            if ( this.grid_view_adapter == null ) { // 初回起動時
-                // アダプタをビューに関連づける
-                setAdapter(getView().findViewById(R.id.gridView));
-            }
-            // ローダーIDが3より大きいとき（3回更新されたので更新を終了する）
-            if (3 < loader.getId()) {
-                this.grid_view_adapter.notifyDataSetChanged(); // 表示の更新
-                this.swipeRefreshLayout.setRefreshing(false);
-            }
-            else {
-                startLoader(loader.getId() + 1); // ローダーのIDに1を追加して再度URLを取得する
-            }
+            // アダプタをビューに関連づける
+            setAdapter(getView().findViewById(R.id.gridView));
+
+            this.grid_view_adapter.notifyDataSetChanged(); // 表示の更新
+            this.swipeRefreshLayout.setRefreshing(false);
         }
 
         @Override
@@ -160,17 +162,33 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    /** Called when the user taps the Send button **/
+    /** Called when the user taps the Search button **/
     public void sendMessage(View view){
-        final String regx = "<img.+?src=\"(.+?)\".+?>";
-        Pattern pattern = Pattern.compile(regx);
-        //Matcher matcher = pattern.matcher(response);
         // Do something in response to button
-        Intent intent = new Intent(this, DisplayMessageActivity.class);
         EditText editText = (EditText) findViewById(R.id.editText);
         String message = editText.getText().toString();
-        intent.putExtra(EXTRA_MESSAGE, message);
-        startActivity(intent);
+        if(message.equals("")) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setMessage("please input keyword!")
+                    .setPositiveButton("close", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int id) {
+                            // ボタンをクリックしたときの動作
+                        }
+                    });
+            builder.show();
+        } else {
+            if (instagramFragment == null) {
+                instagramFragment = new InstagramFragment();
+                getFragmentManager().beginTransaction()
+                        .add(R.id.container, instagramFragment).commit();
+            } else {
+                getFragmentManager().beginTransaction()
+                        .remove(instagramFragment);
+                instagramFragment = new InstagramFragment();
+                getFragmentManager().beginTransaction()
+                        .add(R.id.container, instagramFragment).commit();
+            }
+        }
     }
 }
 

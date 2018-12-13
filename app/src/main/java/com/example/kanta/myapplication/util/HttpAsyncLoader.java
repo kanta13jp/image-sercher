@@ -16,15 +16,18 @@ public class HttpAsyncLoader extends AsyncTaskLoader<String> {
 
     public HttpAsyncLoader(Context context, String url) {
         super(context);
+        Log.e(this.getClass().getSimpleName(),"HttpAsyncLoader() url = " + url);
         try {
             this.url = new URL(url);
         } catch (MalformedURLException e) {
             e.printStackTrace();
+            Log.e(this.getClass().getSimpleName(),e.getMessage());
         }
     }
 
     @Override
     public String loadInBackground() {
+        Log.e(this.getClass().getSimpleName(),"loadInBackground()");
         HttpURLConnection urlConnection = null;
         String responseBody = "";
         try {
@@ -41,7 +44,7 @@ public class HttpAsyncLoader extends AsyncTaskLoader<String> {
             }
 
             System.out.print(responseBody);
-
+            Log.e(this.getClass().getSimpleName(),"loadInBackground() responseBody = " + responseBody);
             return responseBody;
         }
         catch (Exception e) {
